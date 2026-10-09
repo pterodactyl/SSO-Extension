@@ -206,6 +206,12 @@ test('users can list and remove their connections', function (): void {
     expect(Identity::query()->count())->toBe(1);
 });
 
+test('PKCE S256 matches the RFC 7636 example', function (): void {
+    expect(\Sso\Pkce::challenge(
+        'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk',
+    ))->toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+});
+
 /**
  * @param array
  */

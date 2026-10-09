@@ -29,16 +29,23 @@ interface IdentityProvider
     public function enabled(): bool;
 
     /**
-     * @param string
-     * @param string
-     * @return string
+     * @return bool
      */
-    public function authorizationUrl(string $state, string $redirectUri): string;
+    public function usesPkce(): bool;
 
     /**
      * @param string
      * @param string
+     * @param string|null
+     * @return string
+     */
+    public function authorizationUrl(string $state, string $redirectUri, ?string $codeChallenge = null,): string;
+
+    /**
+     * @param string
+     * @param string
+     * @param string|null
      * @return ExternalIdentity
      */
-    public function identify(string $code, string $redirectUri): ExternalIdentity;
+    public function identify(string $code, string $redirectUri, ?string $codeVerifier = null,): ExternalIdentity;
 }

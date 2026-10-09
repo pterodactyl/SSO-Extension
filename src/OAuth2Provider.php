@@ -35,11 +35,11 @@ abstract class OAuth2Provider implements IdentityProvider
                 ->label('Enabled')
                 ->tab($this->name())
                 ->field('toggle')
-                ->normalizeUsing(fn (mixed $value): bool => $value === true),
+                ->normalizeUsing(fn(mixed $value): bool => $value === true),
             ExtensionSettingDefinition::make($this->key('client_id'), $this->key('client_id'), '', ['nullable', 'string', 'max:255'])
                 ->label('Client ID')
                 ->tab($this->name())
-                ->help('Set the redirect URL of the '.$this->name().' application to '.SsoRoutes::callback($this->id())),
+                ->help('Set the redirect URL of the ' . $this->name() . ' application to ' . SsoRoutes::callback($this->id())),
             ExtensionSettingDefinition::make($this->key('client_secret'), $this->key('client_secret'), '', ['nullable', 'string', 'max:255'])
                 ->label('Client secret')
                 ->tab($this->name())
@@ -60,38 +60,90 @@ abstract class OAuth2Provider implements IdentityProvider
     /**
      * @inheritdoc
      */
-    public function authorizationUrl(string $state, string $redirectUri): string
+    public function usesPkce(): bool {
+        return false;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function authorizationUrl(string $state, string $redirectUri, ?string $codeChallenge = null): string
     {
-        return $this->authorizeEndpoint().'?'.http_build_query([
+        $parameters = [
             ...$this->authorizationParameters(),
             'response_type' => 'code',
             'client_id' => $this->config->string($this->key('client_id')),
             'redirect_uri' => $redirectUri,
             'scope' => implode(' ', $this->scopes()),
             'state' => $state,
-        ], '', '&', PHP_QUERY_RFC3986);
+        ];
+
+        if ($this->usesPkce()) {
+            if (
+                $codeChallenge === null
+                || preg_match('/^[A-Za-z0-9_-]{43}$/D', $codeChallenge) !== 1
+            ) {
+                throw new SsoException(SsoException::STATE);
+            }
+
+            $parameters['code_challenge'] = $codeChallenge;
+            $parameters['code_challenge_method'] = 'S256';
+        }
+
+        return $this->authorizeEndpoint() . '?' . http_build_query(
+            $parameters,
+            '',
+            '&',
+            PHP_QUERY_RFC3986,
+        );
     }
 
     /**
      * @inheritdoc
      */
-    public function identify(string $code, string $redirectUri): ExternalIdentity
-    {
-        $token = Http::asForm()->acceptJson()->timeout(10)->post($this->tokenEndpoint(), [
+    public function identify(
+        string $code,
+        string $redirectUri,
+        ?string $codeVerifier = null,
+    ): ExternalIdentity {
+        $parameters = [
             'grant_type' => 'authorization_code',
             'code' => $code,
             'redirect_uri' => $redirectUri,
             'client_id' => $this->config->string($this->key('client_id')),
             'client_secret' => $this->config->string($this->key('client_secret')),
-        ])->throw()->json('access_token');
+        ];
 
-        if (! is_string($token) || $token === '') {
+        if ($this->usesPkce()) {
+            if (
+                $codeVerifier === null
+                || preg_match('/^[A-Za-z0-9._~-]{43,128}$/D', $codeVerifier) !== 1
+            ) {
+                throw new SsoException(SsoException::STATE);
+            }
+
+            $parameters['code_verifier'] = $codeVerifier;
+        }
+
+        $token = Http::asForm()
+            ->acceptJson()
+            ->timeout(10)
+            ->post($this->tokenEndpoint(), $parameters)
+            ->throw()
+            ->json('access_token');
+
+        if (!is_string($token) || $token === '') {
             throw new SsoException(SsoException::PROVIDER);
         }
 
-        $user = Http::acceptJson()->timeout(10)->withToken($token)->get($this->userEndpoint())->throw()->json();
+        $user = Http::acceptJson()
+            ->timeout(10)
+            ->withToken($token)
+            ->get($this->userEndpoint())
+            ->throw()
+            ->json();
 
-        if (! is_array($user)) {
+        if (!is_array($user)) {
             throw new SsoException(SsoException::PROVIDER);
         }
 
@@ -118,7 +170,7 @@ abstract class OAuth2Provider implements IdentityProvider
     protected function stringId(mixed $value): string
     {
         $id = is_int($value) ? (string) $value : $value;
-        if (! is_string($id) || $id === '') {
+        if (!is_string($id) || $id === '') {
             throw new SsoException(SsoException::PROVIDER);
         }
 
@@ -165,6 +217,6 @@ abstract class OAuth2Provider implements IdentityProvider
      */
     protected function key(string $name): string
     {
-        return $this->id().'_'.$name;
+        return $this->id() . '_' . $name;
     }
 }
