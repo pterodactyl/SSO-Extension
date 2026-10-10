@@ -10,6 +10,7 @@ Lets users sign in to the panel with an external account. Built as a module that
 - Google
 - GitLab
 - Microsoft
+- OpenID Connect (any number of servers, added from Admin > OpenID Connect)
 
 ## Install
 
@@ -23,6 +24,13 @@ php artisan p:extension:install /path/to/sso.zip --enable
 Or install the extension using the admin panel under Admin > Extensions.
 
 You must then reload the panel, then you can find the configuration under Admin > Extensions > Single Sign-On.
+
+## OpenID Connect
+
+Turn on **Enable OpenID Connect** in the extension settings, then add servers under Admin > OpenID Connect. Each one has an issuer URL (discovery is read from `/.well-known/openid-configuration`), a client ID and secret, and is given the redirect URL shown in the list.
+
+- **Groups to roles:** list administrator and member groups, and the claim that holds the groups (`groups` by default; use dots for nested claims, such as `realm_access.roles`). Roles are applied at every sign-in. When any group is listed, a user in none of them is refused; with no member group, everyone else is a regular user. With no groups listed the role is never changed.
+- **Create accounts:** an unknown user gets a panel account when this is enabled. An email is required, and an email already used on the panel is refused rather than merged. Only OpenID Connect servers can do this.
 
 ## Adding a provider
 

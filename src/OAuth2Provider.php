@@ -33,16 +33,16 @@ abstract class OAuth2Provider implements IdentityProvider
         return [
             ExtensionSettingDefinition::make($this->key('enabled'), $this->key('enabled'), false, ['boolean'])
                 ->label('Enabled')
-                ->tab($this->name())
+                ->tab($this->tab())
                 ->field('toggle')
                 ->normalizeUsing(fn (mixed $value): bool => $value === true),
             ExtensionSettingDefinition::make($this->key('client_id'), $this->key('client_id'), '', ['nullable', 'string', 'max:255'])
                 ->label('Client ID')
-                ->tab($this->name())
-                ->help('Set the redirect URL of the '.$this->name().' application to '.SsoRoutes::callback($this->id())),
+                ->tab($this->tab())
+                ->help('Set the redirect URL of the '.$this->tab().' application to '.SsoRoutes::callback($this->id())),
             ExtensionSettingDefinition::make($this->key('client_secret'), $this->key('client_secret'), '', ['nullable', 'string', 'max:255'])
                 ->label('Client secret')
-                ->tab($this->name())
+                ->tab($this->tab())
                 ->secret(),
         ];
     }
@@ -53,8 +53,8 @@ abstract class OAuth2Provider implements IdentityProvider
     public function enabled(): bool
     {
         return $this->config->boolean($this->key('enabled'))
-            && $this->config->string($this->key('client_id')) !== ''
-            && $this->config->string($this->key('client_secret')) !== '';
+            && $this->clientId() !== ''
+            && $this->clientSecret() !== '';
     }
 
     /**
@@ -65,7 +65,7 @@ abstract class OAuth2Provider implements IdentityProvider
         return $this->authorizeEndpoint().'?'.http_build_query([
             ...$this->authorizationParameters(),
             'response_type' => 'code',
-            'client_id' => $this->config->string($this->key('client_id')),
+            'client_id' => $this->clientId(),
             'redirect_uri' => $redirectUri,
             'scope' => implode(' ', $this->scopes()),
             'state' => $state,
@@ -81,8 +81,8 @@ abstract class OAuth2Provider implements IdentityProvider
             'grant_type' => 'authorization_code',
             'code' => $code,
             'redirect_uri' => $redirectUri,
-            'client_id' => $this->config->string($this->key('client_id')),
-            'client_secret' => $this->config->string($this->key('client_secret')),
+            'client_id' => $this->clientId(),
+            'client_secret' => $this->clientSecret(),
         ])->throw()->json('access_token');
 
         if (! is_string($token) || $token === '') {
@@ -157,6 +157,32 @@ abstract class OAuth2Provider implements IdentityProvider
     protected function authorizationParameters(): array
     {
         return [];
+    }
+
+    /**
+     * Settings tab title. Allow inheriting classes to override the value.
+     *
+     * @return string
+     */
+    protected function tab(): string
+    {
+        return $this->name();
+    }
+
+    /**
+     * @return string
+     */
+    protected function clientId(): string
+    {
+        return $this->config->string($this->key('client_id'));
+    }
+
+    /**
+     * @return string
+     */
+    protected function clientSecret(): string
+    {
+        return $this->config->string($this->key('client_secret'));
     }
 
     /**

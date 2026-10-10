@@ -2,7 +2,7 @@
     "$schema": "../../packages/sdk/manifest.schema.json",
     "id": "sso",
     "name": "Single Sign-On",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Sign in to the panel with an external account such as Discord.",
     "provider": "Sso\\SsoServiceProvider",
     "autoload": {
@@ -26,6 +26,18 @@
                 "nav": {
                     "label": "Connections",
                     "icon": "link"
+                }
+            },
+            {
+                "id": "providers",
+                "area": "admin",
+                "path": "oidc-providers",
+                "nav": {
+                    "label": "OpenID Connect",
+                    "icon": "key-round"
+                },
+                "when": {
+                    "runtime": true
                 }
             }
         ]

@@ -12,6 +12,8 @@ final class SsoSettings
 {
     public const string LINK_BY_EMAIL = 'link_by_email';
 
+    public const string OIDC_ENABLED = 'oidc_enabled';
+
     /**
      * @var ExtensionSettingsRegistry
      */
