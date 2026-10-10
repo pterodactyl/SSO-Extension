@@ -28,6 +28,7 @@ export const SSO_ERRORS: Record<string, string> = {
     unlinked:
         'No panel account is connected to that login. Sign in with your password, then connect it from Account → Connections.',
     taken: 'That account is already connected to another panel user.',
+    forbidden: 'Your account is not allowed to sign in here.',
 };
 
 export const providersQueryOptions = () =>
@@ -71,4 +72,58 @@ export function searchParam(search: unknown, key: string): string | undefined {
     if (typeof search !== 'object' || search === null) return undefined;
     const value = (search as Record<string, unknown>)[key];
     return typeof value === 'string' && value !== '' ? value : undefined;
+}
+
+export interface OidcProviderRecord {
+    id: number;
+    slug: string;
+    provider_id: string;
+    label: string;
+    issuer: string;
+    client_id: string;
+    has_secret: boolean;
+    scopes: string;
+    groups_claim: string;
+    admin_groups: string[];
+    member_groups: string[];
+    create_users: boolean;
+    enabled: boolean;
+    callback_url: string;
+}
+
+export type OidcProviderInput = Omit<OidcProviderRecord, 'id' | 'provider_id' | 'has_secret' | 'callback_url' | 'slug'> & {
+    slug?: string;
+    client_secret?: string;
+};
+
+const ADMIN_PATH = '/api/admin/extensions/sso/oidc-providers';
+
+export const oidcProvidersQueryOptions = () =>
+    queryOptions({
+        queryKey: ['extensions', 'sso', 'oidc-providers'],
+        queryFn: async () => {
+            const { data, meta } = (
+                await http.get<{ data: OidcProviderRecord[]; meta: { callback_base: string } }>(ADMIN_PATH)
+            ).data;
+
+            return { providers: data, callbackBase: meta.callback_base };
+        },
+    });
+
+/**
+ * @param {number | null} id
+ * @param {OidcProviderInput} input
+ * @returns {Promise<void>}
+ */
+export async function saveOidcProvider(id: number | null, input: OidcProviderInput): Promise<void> {
+    if (id === null) await http.post(ADMIN_PATH, input);
+    else await http.put(`${ADMIN_PATH}/${id}`, input);
+}
+
+/**
+ * @param {number} id
+ * @returns {Promise<void>}
+ */
+export async function deleteOidcProvider(id: number): Promise<void> {
+    await http.delete(`${ADMIN_PATH}/${id}`);
 }

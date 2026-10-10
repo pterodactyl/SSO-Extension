@@ -30,6 +30,13 @@ final class SsoServiceProvider extends ExtensionProvider
                 ->help('Sign in a user whose panel email matches the verified email of an external account that is not linked yet, and link it. Only enable this for providers that verify email addresses.')
                 ->field('toggle')
                 ->normalizeUsing(fn (mixed $value): bool => $value === true),
+            ExtensionSettingDefinition::make(SsoSettings::OIDC_ENABLED, SsoSettings::OIDC_ENABLED, false, ['boolean'])
+                ->label('Enable OpenID Connect')
+                ->help('Turns on every OpenID Connect server and shows the Admin > OpenID Connect page ('.SsoRoutes::OIDC_ADMIN.'), where servers are added. They are not configured in this menu because there can be any number of them. Reload the panel after changing this.')
+                ->field('toggle')
+                ->frontend()
+                ->frontendType('boolean')
+                ->normalizeUsing(fn (mixed $value): bool => $value === true),
         ]));
     }
 
