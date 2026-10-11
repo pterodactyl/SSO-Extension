@@ -37,9 +37,18 @@ function ConnectionRow({ connection }: { connection: SsoConnection }) {
     return (
         <li className={'sso:flex sso:items-center sso:gap-4 sso:px-4 sso:py-3'}>
             <span
-                className={`sso:flex sso:size-10 sso:shrink-0 sso:items-center sso:justify-center sso:rounded-full sso:border ${brand.className}`}
+                className={`sso:flex sso:size-10 sso:shrink-0 sso:items-center sso:justify-center sso:overflow-hidden sso:rounded-full sso:border ${brand.className}`}
             >
-                {brand.icon}
+                {connection.account?.avatar_url ? (
+                    <img
+                        alt={''}
+                        className={'sso:size-full sso:rounded-full sso:object-cover'}
+                        referrerPolicy={'no-referrer'}
+                        src={connection.account.avatar_url}
+                    />
+                ) : (
+                    brand.icon
+                )}
             </span>
             <div className={'sso:min-w-0 sso:flex-1'}>
                 <p className={'sso:font-medium sso:text-foreground'}>{connection.name}</p>

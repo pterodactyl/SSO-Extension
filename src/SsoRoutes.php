@@ -8,6 +8,8 @@ final class SsoRoutes
 {
     public const string PREFIX = '/extensions/sso';
 
+    public const string OIDC_ADMIN = '/panel/oidc-providers';
+
     /**
      * @param string
      * @return string

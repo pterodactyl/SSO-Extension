@@ -20,6 +20,10 @@ final class SsoException extends RuntimeException
 
     public const string TAKEN = 'taken';
 
+    public const string FORBIDDEN = 'forbidden';
+
+    public const string UNVERIFIED = 'unverified';
+
     /**
      * @var string
      */

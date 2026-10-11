@@ -6,6 +6,7 @@ namespace Sso\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Pterodactyl\Contracts\Users\CompletesLogins;
 use Pterodactyl\Models\User;
@@ -92,6 +93,8 @@ final class AuthorizationController
 
             return $intent === self::LINK ? $this->completeLink($request, $identity) : $this->completeLogin($request, $identity);
         } catch (SsoException $exception) {
+            Log::debug('sso: callback refused', ['provider' => $provider, 'intent' => $intent, 'reason' => $exception->reason]);
+
             return $this->failed($intent, $exception->reason);
         }
     }
@@ -110,9 +113,18 @@ final class AuthorizationController
         }
 
         $state = Str::random(40);
+
+        try {
+            $url = $provider->authorizationUrl($state, SsoRoutes::callback($id));
+        } catch (Throwable $throwable) {
+            report($throwable);
+
+            return $this->failed($intent, SsoException::PROVIDER);
+        }
+
         $request->session()->put(self::FLOW, ['provider' => $id, 'state' => $state, 'intent' => $intent]);
 
-        return redirect()->away($provider->authorizationUrl($state, SsoRoutes::callback($id)));
+        return redirect()->away($url);
     }
 
     /**
