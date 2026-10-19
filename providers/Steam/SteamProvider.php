@@ -7,6 +7,7 @@ namespace Sso\Providers\Steam;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Pterodactyl\Services\Extensions\ExtensionSettingDefinition;
+use Sso\Contracts\LooksUpAccounts;
 use Sso\Contracts\ReadsCallback;
 use Sso\Data\ExternalIdentity;
 use Sso\Exceptions\SsoException;
@@ -14,7 +15,7 @@ use Sso\SsoSettings;
 use Symfony\Component\HttpFoundation\HeaderUtils;
 use Throwable;
 
-final class SteamProvider implements ReadsCallback
+final class SteamProvider implements LooksUpAccounts, ReadsCallback
 {
     private const string ENDPOINT = 'https://steamcommunity.com/openid/login';
 
@@ -83,6 +84,40 @@ final class SteamProvider implements ReadsCallback
     /**
      * @inheritdoc
      */
+    public function accountIdPattern(): string
+    {
+        return '^7656119[0-9]{10}$';
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function accountIdHint(): string
+    {
+        return 'A SteamID64 is 17 digits and starts with 7656119. It is the number in the address of a Steam profile without a custom URL.';
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function canLookUp(): bool
+    {
+        return $this->config->string($this->key('api_key')) !== '';
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function lookUp(string $id): ?ExternalIdentity
+    {
+        $player = $this->fetchPlayer($id);
+
+        return $player === [] ? null : $this->identity($id, $player);
+    }
+
+    /**
+     * @inheritdoc
+     */
     public function authorizationUrl(string $state, string $redirectUri): string
     {
         return self::ENDPOINT.'?'.http_build_query([
@@ -144,7 +179,17 @@ final class SteamProvider implements ReadsCallback
         }
 
         $steamId = $matches[1];
-        $player = $this->player($steamId);
+
+        return $this->identity($steamId, $this->player($steamId));
+    }
+
+    /**
+     * @param string
+     * @param array
+     * @return ExternalIdentity
+     */
+    private function identity(string $steamId, array $player): ExternalIdentity
+    {
         $name = $player['personaname'] ?? null;
         $avatar = $player['avatarfull'] ?? null;
 
@@ -189,19 +234,27 @@ final class SteamProvider implements ReadsCallback
      */
     private function player(string $steamId): array
     {
-        $key = $this->config->string($this->key('api_key'));
-        if ($key === '') {
+        if (! $this->canLookUp()) {
             return [];
         }
 
         try {
-            $players = Http::acceptJson()->timeout(10)->get('https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/', [
-                'key' => $key,
-                'steamids' => $steamId,
-            ])->throw()->json('response.players');
+            return $this->fetchPlayer($steamId);
         } catch (Throwable) {
             return [];
         }
+    }
+
+    /**
+     * @param string
+     * @return array
+     */
+    private function fetchPlayer(string $steamId): array
+    {
+        $players = Http::acceptJson()->timeout(10)->get('https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/', [
+            'key' => $this->config->string($this->key('api_key')),
+            'steamids' => $steamId,
+        ])->throw()->json('response.players');
 
         foreach (is_array($players) ? $players : [] as $player) {
             if (is_array($player) && ($player['steamid'] ?? null) === $steamId) {

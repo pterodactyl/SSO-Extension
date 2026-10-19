@@ -25,6 +25,22 @@ Or install the extension using the admin panel under Admin > Extensions.
 
 You must then reload the panel, then you can find the configuration under Admin > Extensions > Single Sign-On.
 
+## Accounts for a Discord or Steam ID
+
+Admins can create a user from just a Discord or Steam account, without an email, username or password.
+
+1. Enable the provider under Admin > Extensions > Single Sign-On.
+2. Under Admin > Users > New user, enter the user's Discord ID (17 to 20 digits; turn on Developer Mode in Discord, right-click the user and choose Copy User ID) or SteamID64 (17 digits starting with 7656119) in the Single Sign-On section.
+3. Turn on "Set up on first sign-in". The form fills the email, username and name with placeholders (`discord-<id>`, `<id>@discord.invalid`) and the panel gives the account a random password. Nothing is ever emailed to a `.invalid` address, so no welcome email is sent.
+
+The edit form shows the same fields: changing an ID links the new account instead (the stored name and avatar of the old one are cleared), and clearing it unlinks the provider. An ID that is already linked to another user is refused.
+
+On their first sign-in with that account, the user lands on "Finish your account" and chooses a username, email, name and optionally a password. The email is filled in when the provider reports a verified one. Until they finish, every other page sends them back there and the API answers `409` with the code `SsoSetupRequired`; signing out still works. Users can relink or disconnect providers from Account > Connections as before, except that a provider cannot be disconnected while the account is waiting for setup, or while it is the only way in to an account that still has a placeholder email.
+
+The Discord "Bot token" setting is optional. With a token, the admin form shows the Discord name and avatar for the entered ID, so a mistyped ID is noticed before anyone signs in with it. Create a bot for the application under Bot in the Discord developer portal; it needs no permissions and does not have to join a server. The token stays on the panel. Without one, IDs are only checked for their format. Steam does the same with its optional Web API key.
+
+A provider offers these fields by implementing `Sso\Contracts\AcceptsAccountIds`, and the lookup by implementing `Sso\Contracts\LooksUpAccounts`. Only use it for providers whose account IDs are stable and public.
+
 ## Adding a provider
 
 Each provider lives in its own directory under `providers/`. The extension discovers them; there is no list to edit.

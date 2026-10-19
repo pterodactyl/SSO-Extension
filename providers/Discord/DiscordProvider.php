@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Sso\Providers\Discord;
 
+use Illuminate\Support\Facades\Http;
+use Pterodactyl\Services\Extensions\ExtensionSettingDefinition;
+use Sso\Contracts\LooksUpAccounts;
 use Sso\Data\ExternalIdentity;
 use Sso\Exceptions\SsoException;
 use Sso\OAuth2Provider;
 
-final class DiscordProvider extends OAuth2Provider
+final class DiscordProvider extends OAuth2Provider implements LooksUpAccounts
 {
     /**
      * @inheritdoc
@@ -24,6 +27,65 @@ final class DiscordProvider extends OAuth2Provider
     public function name(): string
     {
         return 'Discord';
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function settings(): array
+    {
+        return [
+            ...parent::settings(),
+            ExtensionSettingDefinition::make($this->key('bot_token'), $this->key('bot_token'), '', ['nullable', 'string', 'max:255'])
+                ->label('Bot token')
+                ->tab($this->name())
+                ->help('Optional. Lets the admin user forms show the Discord account a user ID belongs to. Create a bot for the application under Bot in the Discord developer portal and paste its token; it needs no permissions and does not have to join a server.')
+                ->secret(),
+        ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function accountIdPattern(): string
+    {
+        return '^[0-9]{17,20}$';
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function accountIdHint(): string
+    {
+        return 'A Discord user ID is 17 to 20 digits. Turn on Developer Mode in Discord, then right-click the user and choose Copy User ID.';
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function canLookUp(): bool
+    {
+        return $this->config->string($this->key('bot_token')) !== '';
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function lookUp(string $id): ?ExternalIdentity
+    {
+        $response = Http::acceptJson()->timeout(10)
+            ->withHeaders(['Authorization' => 'Bot '.$this->config->string($this->key('bot_token'))])
+            ->get('https://discord.com/api/v10/users/'.rawurlencode($id));
+        if ($response->notFound()) {
+            return null;
+        }
+
+        $user = $response->throw()->json();
+        if (! is_array($user)) {
+            throw new SsoException(SsoException::PROVIDER);
+        }
+
+        return $this->mapIdentity($user);
     }
 
     /**

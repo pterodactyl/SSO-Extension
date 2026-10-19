@@ -28,6 +28,11 @@
                     "label": "Connections",
                     "icon": "link"
                 }
+            },
+            {
+                "id": "setup",
+                "area": "account",
+                "path": "setup"
             }
         ]
     }

@@ -15,7 +15,9 @@ use Sso\Data\ExternalIdentity;
 use Sso\Exceptions\SsoException;
 use Sso\Pkce;
 use Sso\ProviderRegistry;
+use Sso\Services\AccountSetup;
 use Sso\Services\IdentityResolver;
+use Sso\Services\Placeholders;
 use Sso\SsoRoutes;
 use Throwable;
 
@@ -45,15 +47,22 @@ final class AuthorizationController
     protected CompletesLogins $logins;
 
     /**
+     * @var AccountSetup
+     */
+    protected AccountSetup $setup;
+
+    /**
      * @param ProviderRegistry
      * @param IdentityResolver
      * @param CompletesLogins
+     * @param AccountSetup
      */
-    public function __construct(ProviderRegistry $providers, IdentityResolver $resolver, CompletesLogins $logins)
+    public function __construct(ProviderRegistry $providers, IdentityResolver $resolver, CompletesLogins $logins, AccountSetup $setup)
     {
         $this->providers = $providers;
         $this->resolver = $resolver;
         $this->logins = $logins;
+        $this->setup = $setup;
     }
 
     /**
@@ -178,9 +187,15 @@ final class AuthorizationController
      */
     private function completeLogin(Request $request, ExternalIdentity $identity): RedirectResponse
     {
-        $result = $this->logins->complete($this->resolver->userFor($identity));
+        $user = $this->resolver->userFor($identity);
+        $pending = $this->setup->pending($user);
+        if ($pending && $identity->emailVerified && $identity->email !== null && ! Placeholders::isReservedEmail($identity->email)) {
+            $request->session()->put(AccountSetup::SESSION_EMAIL, $identity->email);
+        }
+
+        $result = $this->logins->complete($user);
         if ($result->complete) {
-            return redirect()->to($result->intended);
+            return redirect()->to($pending ? SsoRoutes::SETUP : $result->intended);
         }
 
         $request->session()->put(self::CHECKPOINT, true);
