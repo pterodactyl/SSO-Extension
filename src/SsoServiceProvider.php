@@ -4,10 +4,19 @@ declare(strict_types=1);
 
 namespace Sso;
 
+use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Notifications\Events\NotificationSending;
+use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Pterodactyl\Extensions\ExtensionProvider;
+use Pterodactyl\Models\User;
 use Pterodactyl\Services\Extensions\ExtensionSettingDefinition;
 use Pterodactyl\Services\Extensions\ExtensionSettingsDefinition;
+use Sso\Fields\AccountFields;
+use Sso\Http\Middleware\FillPlaceholderDetails;
+use Sso\Http\Middleware\RequireAccountSetup;
+use Sso\Listeners\SkipReservedAddresses;
 
 final class SsoServiceProvider extends ExtensionProvider
 {
@@ -42,6 +51,23 @@ final class SsoServiceProvider extends ExtensionProvider
         $this->registerWebRoutes($this->extensionPath('routes', 'web.php'));
         $this->registerAuthenticatedWebRoutes($this->extensionPath('routes', 'account.php'));
         $this->registerApiRoutes();
+        $this->registerFields(User::class, AccountFields::class);
+        $this->registerAccountSetup();
+    }
+
+    /**
+     * The panel has no extension API for these yet: the middleware and listeners are added
+     * directly and check that the extension is available on every call.
+     */
+    private function registerAccountSetup(): void
+    {
+        $router = $this->app->make(Router::class);
+        $router->pushMiddlewareToGroup('web', RequireAccountSetup::class);
+        $router->pushMiddlewareToGroup('api', RequireAccountSetup::class);
+        $router->pushMiddlewareToGroup('admin-api', FillPlaceholderDetails::class);
+
+        Event::listen(NotificationSending::class, [SkipReservedAddresses::class, 'notification']);
+        Event::listen(MessageSending::class, [SkipReservedAddresses::class, 'message']);
     }
 
     /**

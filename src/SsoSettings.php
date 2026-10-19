@@ -10,6 +10,8 @@ use RuntimeException;
 
 final class SsoSettings
 {
+    public const string EXTENSION = 'sso';
+
     public const string LINK_BY_EMAIL = 'link_by_email';
 
     /**
@@ -50,6 +52,6 @@ final class SsoSettings
      */
     private function definition(): ExtensionSettingsDefinition
     {
-        return $this->registry->get('sso') ?? throw new RuntimeException('The sso extension settings are not registered.');
+        return $this->registry->get(self::EXTENSION) ?? throw new RuntimeException('The sso extension settings are not registered.');
     }
 }
