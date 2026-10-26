@@ -7,6 +7,7 @@ Lets users sign in to the panel with an external account. Built as a module that
 **Included Providers:**
 - Discord
 - GitHub
+- Paymenter
 - Google
 - GitLab
 - Microsoft
@@ -92,3 +93,11 @@ Steam only offers OpenID 2.0, so it needs no client ID or secret: enabling it is
 Steam does not share an email address, so "Link accounts by verified email" never applies to it. Users have to connect Steam from Account > Connections before they can sign in with it.
 
 Without a `brand.tsx`, the provider gets a neutral button. With one, it exports its colours and logo, keyed by the provider's `id` (see `providers/Discord/brand.tsx`). Rebuild the frontend (`npm run build`) after adding or changing a brand.
+
+## Paymenter
+
+Paymenter is self-hosted, so set **Paymenter URL** as well (such as `https://billing.example.com`). Create the
+client in Paymenter under Admin > OAuth Clients > New, with the redirect URL shown under Client ID, and copy the
+client secret Paymenter shows once. Paymenter marks an email verified when the customer opens the link in its
+verification email, so "Link accounts by verified email" needs Paymenter's mail to work (or the admin switches on
+"Email Verified" on the user in Paymenter).
