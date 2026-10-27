@@ -12,6 +12,16 @@ final class SsoSettings
 {
     public const string LINK_BY_EMAIL = 'link_by_email';
 
+    public const string DIRECT_ENABLED = 'direct_sso_enabled';
+
+    public const string DIRECT_SECRET = 'direct_sso_secret';
+
+    public const string DIRECT_ALLOW_ADMIN = 'direct_sso_allow_admin';
+
+    public const string DIRECT_ALLOW_2FA = 'direct_sso_allow_2fa';
+
+    public const string DIRECT_TOKEN_LIFETIME = 'direct_sso_token_lifetime';
+
     /**
      * @var ExtensionSettingsRegistry
      */
@@ -43,6 +53,45 @@ final class SsoSettings
         $value = $this->definition()->get($key);
 
         return is_string($value) ? mb_trim($value) : '';
+    }
+
+    /**
+     * Get the configured direct SSO secret, checking settings first then environment variables.
+     *
+     * @return string
+     */
+    public function directSecret(): string
+    {
+        $secret = $this->string(self::DIRECT_SECRET);
+        if ($secret !== '') {
+            return $secret;
+        }
+
+        $envSecret = env('WEMX_SSO_SECRET', env('DIRECT_SSO_SECRET'));
+
+        return is_string($envSecret) ? mb_trim($envSecret) : '';
+    }
+
+    /**
+     * Check if direct SSO is enabled either explicitly or via a configured secret.
+     *
+     * @return bool
+     */
+    public function directEnabled(): bool
+    {
+        return $this->boolean(self::DIRECT_ENABLED) || $this->directSecret() !== '';
+    }
+
+    /**
+     * Get the token lifetime in seconds for direct SSO one-time tokens.
+     *
+     * @return int
+     */
+    public function directTokenLifetime(): int
+    {
+        $raw = (int) $this->string(self::DIRECT_TOKEN_LIFETIME);
+
+        return $raw > 0 ? $raw : 60;
     }
 
     /**

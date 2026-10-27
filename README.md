@@ -92,3 +92,55 @@ Steam only offers OpenID 2.0, so it needs no client ID or secret: enabling it is
 Steam does not share an email address, so "Link accounts by verified email" never applies to it. Users have to connect Steam from Account > Connections before they can sign in with it.
 
 Without a `brand.tsx`, the provider gets a neutral button. With one, it exports its colours and logo, keyed by the provider's `id` (see `providers/Discord/brand.tsx`). Rebuild the frontend (`npm run build`) after adding or changing a brand.
+
+## Direct SSO (Billing Platforms & External Integrations)
+
+Direct SSO enables billing systems (such as **WemX**, **Paymenter**, **WHMCS**, ClientX) or custom applications to log users directly into their panel account via a secure, single-use token exchange.
+
+This feature is compatible with the protocol popularized by `wemx/sso-pterodactyl` for Pterodactyl v1, upgraded for Pterodactyl 2.0 with native checkpoint support and configurable security policies.
+
+### Configuration
+
+You can configure Direct SSO under **Admin > Extensions > Single Sign-On > Direct SSO**, or generate a secret key using the Artisan CLI:
+
+```sh
+php artisan sso:direct-secret
+# or use the legacy compatibility command:
+php artisan wemx:generate
+```
+
+You can also specify the secret directly in your `.env` file:
+```env
+WEMX_SSO_SECRET="your-generated-secret-key"
+```
+
+### Settings
+
+- **Enable Direct SSO**: Toggle direct token-based SSO on or off.
+- **Direct SSO Secret**: Shared secret key required to request one-time login tokens.
+- **Allow Admin Accounts**: Disabled by default. Protects against automatic login into administrative accounts.
+- **Allow Accounts With 2FA**: When enabled, accounts protected with Two-Factor Authentication are handed off to the native 2FA checkpoint. When disabled, requests for 2FA-enabled accounts are rejected with status 501 (WemX standard behavior).
+- **Token Lifetime**: How long a generated token remains valid (default: 60 seconds).
+
+### How it Works
+
+1. Your billing application requests a one-time login token from the panel:
+
+```php
+$response = Http::get('https://panel.example.com/sso-wemx', [
+    'sso_secret' => 'your-secret-key',
+    'user_id' => $user->pterodactyl_id, // or 'email' => $user->email
+    'redirect' => '/server/12345678',   // optional destination path
+]);
+
+if ($response->successful()) {
+    return redirect()->away($response['redirect']);
+}
+```
+
+Both `/sso-wemx` and `/extensions/sso/direct` endpoints are supported (via GET or POST). The secret can be provided in `sso_secret`, `Authorization: Bearer <secret>`, or `X-SSO-Secret` header.
+
+2. The panel generates an ephemeral single-use token and returns a redirect URL (e.g. `https://panel.example.com/sso-wemx/{token}`).
+3. The billing panel redirects the user's browser to that URL.
+4. The extension validates and immediately consumes the token from cache, completes the session login, and redirects the user to their target server or panel dashboard.
+
